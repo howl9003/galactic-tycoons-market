@@ -1,9 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 
+async function ingestToDb(data) {
+  // Fire-and-forget — silently ignored if the DB server isn't running
+  try {
+    await fetch('/db/ingest', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    })
+  } catch (_) {
+    // Server offline or unreachable — not a problem, just means no history saved
+  }
+}
+
 export function useMatDetails(matId) {
   const [details, setDetails] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error,   setError]   = useState(null)
 
   const fetch_ = useCallback(async () => {
     if (!matId) return
@@ -14,6 +27,9 @@ export function useMatDetails(matId) {
       const data = await res.json()
       setDetails(data)
       setError(null)
+
+      // Pass the fresh data to the local DB server (browser → server, no firewall issue)
+      ingestToDb(data)
     } catch (e) {
       setError(e.message)
     } finally {
