@@ -1,25 +1,31 @@
-import Database from 'better-sqlite3'
+// Uses Node.js built-in SQLite (node:sqlite) — available since Node 22.5, stable in Node 23+.
+// No native compilation needed; works out of the box on Node 24.
+import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { mkdirSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = join(__dirname, '..', 'data')
-const DB_PATH = join(DATA_DIR, 'shroomberg.db')
+const DATA_DIR   = join(__dirname, '..', 'data')
+const DB_PATH    = join(DATA_DIR, 'shroomberg.db')
 
 mkdirSync(DATA_DIR, { recursive: true })
 
-const db = new Database(DB_PATH)
+const db = new DatabaseSync(DB_PATH)
 
-db.pragma('journal_mode = WAL')
-db.pragma('synchronous = NORMAL')
-db.pragma('foreign_keys = ON')
+// Performance & safety pragmas
+db.exec('PRAGMA journal_mode = WAL')
+db.exec('PRAGMA synchronous = NORMAL')
+db.exec('PRAGMA foreign_keys = ON')
+db.exec('PRAGMA busy_timeout = 5000')
+
+// ── Schema ────────────────────────────────────────────────────────────────────
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS materials (
-    mat_id   INTEGER PRIMARY KEY,
-    mat_name TEXT    NOT NULL,
-    updated_at TEXT  NOT NULL
+    mat_id     INTEGER PRIMARY KEY,
+    mat_name   TEXT    NOT NULL,
+    updated_at TEXT    NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS snapshots (
@@ -48,7 +54,23 @@ db.exec(`
     ON snapshot_orders(snapshot_id);
 `)
 
-// ─── Prepared statements ──────────────────────────────────────────────────────
+// ── Transaction helper (mimics better-sqlite3's db.transaction()) ─────────────
+
+function makeTransaction(fn) {
+  return (...args) => {
+    db.exec('BEGIN')
+    try {
+      const result = fn(...args)
+      db.exec('COMMIT')
+      return result
+    } catch (err) {
+      try { db.exec('ROLLBACK') } catch (_) { /* ignore rollback error */ }
+      throw err
+    }
+  }
+}
+
+// ── Prepared statements ───────────────────────────────────────────────────────
 
 export const stmts = {
   upsertMaterial: db.prepare(`
@@ -98,20 +120,13 @@ export const stmts = {
     ORDER  BY captured_at ASC
   `),
 
-  getLatestSnapshot: db.prepare(`
-    SELECT id FROM snapshots
-    WHERE  mat_id = ?
-    ORDER  BY captured_at DESC
-    LIMIT  1
-  `),
-
   dbStats: db.prepare(`
     SELECT
-      (SELECT COUNT(*)           FROM snapshots)       AS total_snapshots,
-      (SELECT COUNT(*)           FROM snapshot_orders) AS total_orders,
-      (SELECT COUNT(DISTINCT mat_id) FROM snapshots)   AS tracked_materials,
-      (SELECT MIN(captured_at)   FROM snapshots)       AS oldest_snapshot,
-      (SELECT MAX(captured_at)   FROM snapshots)       AS newest_snapshot
+      (SELECT COUNT(*)               FROM snapshots)       AS total_snapshots,
+      (SELECT COUNT(*)               FROM snapshot_orders) AS total_orders,
+      (SELECT COUNT(DISTINCT mat_id) FROM snapshots)       AS tracked_materials,
+      (SELECT MIN(captured_at)       FROM snapshots)       AS oldest_snapshot,
+      (SELECT MAX(captured_at)       FROM snapshots)       AS newest_snapshot
   `),
 
   deleteOldSnapshots: db.prepare(`
@@ -119,24 +134,24 @@ export const stmts = {
   `),
 }
 
-// ─── Batch insert transaction ─────────────────────────────────────────────────
+// ── Batch insert transaction ──────────────────────────────────────────────────
 
-export const insertSnapshotTx = db.transaction((matId, apiData, capturedAt) => {
+export const insertSnapshotTx = makeTransaction((matId, apiData, capturedAt) => {
   const { lastInsertRowid } = stmts.insertSnapshot.run({
     mat_id:              matId,
     captured_at:         capturedAt,
-    current_price:       apiData.currentPrice ?? null,
-    avg_price:           apiData.avgPrice     ?? null,
-    total_qty_available: apiData.totalQtyAvailable ?? null,
-    avg_qty_sold_daily:  apiData.avgQtySoldDaily   ?? null,
-    order_count:         apiData.orders?.length    ?? 0,
+    current_price:       apiData.currentPrice       ?? null,
+    avg_price:           apiData.avgPrice           ?? null,
+    total_qty_available: apiData.totalQtyAvailable  ?? null,
+    avg_qty_sold_daily:  apiData.avgQtySoldDaily    ?? null,
+    order_count:         apiData.orders?.length     ?? 0,
   })
 
   for (const order of (apiData.orders ?? [])) {
     stmts.insertOrder.run({
       snapshot_id:  lastInsertRowid,
-      order_id:     order.id   ?? null,
-      company_id:   order.cId  ?? null,
+      order_id:     order.id    ?? null,
+      company_id:   order.cId   ?? null,
       company_name: order.cName ?? null,
       unit_price:   order.unitPrice,
       qty:          order.qty,
