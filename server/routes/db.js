@@ -30,7 +30,7 @@ router.get('/snapshot/:id/orders', (req, res) => {
 // Returns snapshots within the last N hours for minute-level charting
 router.get('/price-history/:matId', (req, res) => {
   try {
-    const hours  = Math.min(parseInt(req.query.hours ?? 24), 7 * 24)
+    const hours  = Math.min(parseInt(req.query.hours ?? 24), 180 * 24)
     const cutoff = new Date(Date.now() - hours * 3_600_000).toISOString()
     const rows   = stmts.getPriceHistory.all(req.params.matId, cutoff)
     res.json(rows)
@@ -43,7 +43,7 @@ router.get('/price-history/:matId', (req, res) => {
 // Diffs first vs last snapshot in window to find new/removed orders
 router.get('/order-changes/:matId', (req, res) => {
   try {
-    const hours   = Math.min(parseInt(req.query.hours ?? 1), 48)
+    const hours   = Math.min(parseInt(req.query.hours ?? 1), 180 * 24)
     const cutoff  = new Date(Date.now() - hours * 3_600_000).toISOString()
     const snaps   = stmts.getPriceHistory.all(req.params.matId, cutoff)
 

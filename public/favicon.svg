@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Stem -->
-  <path d="M12 21 Q11.5 29 16 29 Q20.5 29 20 21" fill="#F5E6D0"/>
-  <!-- Cap -->
-  <path d="M3 23 Q2 9 16 7 Q30 9 29 23 Z" fill="#C85A1E"/>
-  <!-- Cap sheen -->
-  <path d="M7 18 Q10 11 16 8.5" stroke="#E8743C" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
-  <!-- Spots -->
-  <circle cx="10" cy="18" r="2.2" fill="rgba(255,255,255,0.78)"/>
-  <circle cx="18" cy="13" r="2.8" fill="rgba(255,255,255,0.78)"/>
-  <circle cx="24" cy="19" r="1.8" fill="rgba(255,255,255,0.78)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 40">
+  <!-- Small mushroom (right) -->
+  <rect x="33" y="27" width="8" height="13" rx="4" fill="#EDD898"/>
+  <ellipse cx="37" cy="28.5" rx="9" ry="2.5" fill="#9A6208" opacity="0.55"/>
+  <path d="M28 28 Q28 16 37 16 Q46 16 46 28 Z" fill="#C07A10"/>
+  <ellipse cx="37" cy="20.5" rx="5.5" ry="3.5" fill="#E09C28" opacity="0.55"/>
+  <!-- Large mushroom (left) -->
+  <rect x="14" y="22" width="11" height="18" rx="5.5" fill="#EDD898"/>
+  <ellipse cx="19.5" cy="23.5" rx="15" ry="3.5" fill="#9A6208" opacity="0.55"/>
+  <path d="M5 23 Q5 7 19.5 7 Q34 7 34 23 Z" fill="#C07A10"/>
+  <ellipse cx="19.5" cy="13" rx="8.5" ry="5" fill="#E09C28" opacity="0.55"/>
 </svg>

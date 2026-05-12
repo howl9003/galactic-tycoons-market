@@ -7,11 +7,12 @@ import { useSnapshots, useSnapshotOrders, useDbPriceHistory, useDbStats } from '
 import { fmtCredits, fmtCreditsExact, fmtQty, fmtDatetime, relativeTime } from '../lib/format.js'
 
 const HOURS = [
-  { label: '1h', value: 1 },
-  { label: '6h', value: 6 },
-  { label: '24h', value: 24 },
-  { label: '3d', value: 72 },
-  { label: '7d', value: 168 },
+  { label: '1h',   value: 1 },
+  { label: '6h',   value: 6 },
+  { label: '24h',  value: 24 },
+  { label: '7d',   value: 168 },
+  { label: '30d',  value: 720 },
+  { label: '6mo',  value: 4320 },
 ]
 
 function DbStatus() {

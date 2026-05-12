@@ -3,7 +3,7 @@ import { stmts, insertSnapshotTx } from './db.js'
 
 const GT_BASE = 'https://api.g2.galactictycoons.com'
 const CONCURRENCY = 8
-const RETENTION_DAYS = parseInt(process.env.RETENTION_DAYS ?? '7')
+const RETENTION_DAYS = parseInt(process.env.RETENTION_DAYS ?? '180')
 
 async function fetchJson(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(12_000) })
