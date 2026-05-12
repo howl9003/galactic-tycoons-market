@@ -5,11 +5,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      // Both /api and /db go through our Express server
       '/api': {
-        target: 'https://api.g2.galactictycoons.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-        secure: true,
+        target: 'http://localhost:3001',
+        changeOrigin: false,
+      },
+      '/db': {
+        target: 'http://localhost:3001',
+        changeOrigin: false,
       },
     },
   },

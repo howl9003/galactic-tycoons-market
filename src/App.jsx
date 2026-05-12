@@ -1,276 +1,239 @@
 import { useState, useEffect } from 'react'
-import { useMaterials } from './hooks/useMaterials'
-import { useMatDetails } from './hooks/useMatDetails'
-import Sidebar from './components/Sidebar'
-import StatCards from './components/StatCards'
-import PriceChart from './components/PriceChart'
-import VolumeChart from './components/VolumeChart'
-import OrderBook from './components/OrderBook'
-import ThemeToggle from './components/ThemeToggle'
+import { useMaterials }    from './hooks/useMaterials.js'
+import { useMatDetails }   from './hooks/useMatDetails.js'
+import Sidebar             from './components/Sidebar.jsx'
+import StatCards           from './components/StatCards.jsx'
+import PriceChart          from './components/PriceChart.jsx'
+import VolumeChart         from './components/VolumeChart.jsx'
+import OrderBook           from './components/OrderBook.jsx'
+import DepthChart          from './components/DepthChart.jsx'
+import LiquidityPanel      from './components/LiquidityPanel.jsx'
+import DataExplorer        from './components/DataExplorer.jsx'
+import HistoryPanel        from './components/HistoryPanel.jsx'
+import TabPanel            from './components/TabPanel.jsx'
+import ShroomLogo          from './components/ShroomLogo.jsx'
+import ThemeToggle         from './components/ThemeToggle.jsx'
 
+// ── Theme ─────────────────────────────────────────────────────────────────────
 function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('gt-theme') || 'dark'
-  })
-
+  const [theme, setTheme] = useState(() => localStorage.getItem('shroomberg-theme') ?? 'light')
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('gt-theme', theme)
+    localStorage.setItem('shroomberg-theme', theme)
   }, [theme])
-
-  const toggle = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'))
-  return { theme, toggle }
+  return { theme, toggle: () => setTheme(t => t === 'light' ? 'dark' : 'light') }
 }
 
-function Spinner() {
+// ── Tabs config ───────────────────────────────────────────────────────────────
+const TABS = [
+  { id: 'overview',  label: 'Overview',       emoji: '📊' },
+  { id: 'level2',    label: 'Level 2 Depth',  emoji: '📈' },
+  { id: 'explorer',  label: 'Data Explorer',  emoji: '🔬' },
+  { id: 'history',   label: 'DB History',     emoji: '🗄️' },
+]
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+const spinKeyframe = `@keyframes shroomSpin { to { transform: rotate(360deg); } }`
+function Spinner({ size = 18 }) {
   return (
-    <div style={styles.spinner}>
-      <div style={styles.spinnerRing} />
-    </div>
+    <>
+      <style>{spinKeyframe}</style>
+      <div style={{
+        width: size, height: size,
+        border: '2px solid var(--border)',
+        borderTopColor: 'var(--accent)',
+        borderRadius: '50%',
+        animation: 'shroomSpin .7s linear infinite',
+        flexShrink: 0,
+      }} />
+    </>
   )
 }
 
+// ── Live clock / refresh badge ────────────────────────────────────────────────
 function RefreshBadge({ lastUpdated, onRefresh }) {
-  const [secs, setSecs] = useState(0)
-
+  const [, forceRender] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => {
-      if (!lastUpdated) return
-      setSecs(Math.round((Date.now() - lastUpdated.getTime()) / 1000))
-    }, 1000)
+    const id = setInterval(() => forceRender(n => n + 1), 1000)
     return () => clearInterval(id)
-  }, [lastUpdated])
-
+  }, [])
+  const secs = lastUpdated ? Math.round((Date.now() - lastUpdated.getTime()) / 1000) : null
+  const nextIn = secs != null ? Math.max(0, 60 - secs) : '—'
   return (
-    <div style={styles.refreshBadge}>
-      <span style={styles.refreshDot} />
-      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-        {lastUpdated ? `${secs}s ago` : 'Loading…'}
+    <div style={badge.wrap}>
+      <span style={badge.dot} />
+      <span style={badge.text}>
+        {secs != null ? `updated ${secs}s ago · refresh in ${nextIn}s` : 'Loading…'}
       </span>
-      <button style={styles.refreshBtn} onClick={onRefresh}>↻</button>
+      <button style={badge.btn} onClick={onRefresh} title="Refresh now">↻</button>
     </div>
   )
 }
+const badge = {
+  wrap: { display: 'flex', alignItems: 'center', gap: 5, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '4px 8px 4px 10px' },
+  dot:  { width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', flexShrink: 0 },
+  text: { fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' },
+  btn:  { background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 15, padding: '0 2px', lineHeight: 1, cursor: 'pointer' },
+}
 
+// ── Main app ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const { theme, toggle } = useTheme()
+  const { theme, toggle }                       = useTheme()
   const { materials, loading, error, lastUpdated, refresh } = useMaterials()
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected]                 = useState(null)
+  const [activeTab, setActiveTab]               = useState('overview')
 
   const matId = selected?.matId ?? null
   const { details, loading: detailLoading } = useMatDetails(matId)
 
+  // Auto-select first material
   useEffect(() => {
-    if (!selected && materials.length > 0) {
-      setSelected(materials[0])
-    }
+    if (!selected && materials.length > 0) setSelected(materials[0])
   }, [materials, selected])
 
   return (
-    <div style={styles.root}>
-      {/* Sidebar */}
+    <div style={s.root}>
+      {/* ── Sidebar ── */}
       <Sidebar
         materials={materials}
         selected={selected}
-        onSelect={setSelected}
+        onSelect={m => { setSelected(m); setActiveTab('overview') }}
         loading={loading}
       />
 
-      {/* Main */}
-      <div style={styles.main}>
+      {/* ── Main panel ── */}
+      <div style={s.main}>
         {/* Topbar */}
-        <header style={styles.topbar}>
-          <div style={styles.topbarLeft}>
-            <span style={styles.logo}>⬡ Galactic Tycoons</span>
-            <span style={styles.topbarSub}>Market Exchange</span>
+        <header style={s.topbar}>
+          <div style={s.topbarLeft}>
+            <ShroomLogo size={26} />
+            <div>
+              <div style={s.appName}>Shroomberg Terminal</div>
+              <div style={s.appSub}>Galactic Tycoons Exchange</div>
+            </div>
           </div>
-          <div style={styles.topbarRight}>
-            {error && <span style={styles.errorBadge}>API Error: {error}</span>}
+
+          <div style={s.topbarRight}>
+            {error && (
+              <span style={s.errorBadge}>⚠ {error}</span>
+            )}
             <RefreshBadge lastUpdated={lastUpdated} onRefresh={refresh} />
             <ThemeToggle theme={theme} onToggle={toggle} />
           </div>
         </header>
 
+        {/* Material heading + tab strip */}
+        {selected && (
+          <div style={s.matHeaderWrap}>
+            <div style={s.matHeader}>
+              <div>
+                <h1 style={s.matTitle}>{selected.matName}</h1>
+                <span style={s.matId} className="num">mat #{selected.matId}</span>
+              </div>
+              {detailLoading && <Spinner />}
+            </div>
+            <TabPanel tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+          </div>
+        )}
+
         {/* Content */}
-        <div style={styles.content}>
+        <div style={s.content}>
           {!selected ? (
-            <div style={styles.empty}>Select a material to view market data</div>
+            <div style={s.welcome}>
+              <ShroomLogo size={64} />
+              <div style={s.welcomeTitle}>Welcome to Shroomberg Terminal</div>
+              <div style={s.welcomeSub}>Select a material from the sidebar to begin analysis</div>
+            </div>
           ) : (
             <>
-              {/* Material heading */}
-              <div style={styles.matHeader}>
-                <div>
-                  <h1 style={styles.matTitle}>{selected.matName}</h1>
-                  <div style={styles.matId} className="num">ID #{selected.matId}</div>
+              {activeTab === 'overview' && (
+                <div style={s.colStack}>
+                  <StatCards details={details} />
+                  <div style={s.chartsRow}>
+                    <PriceChart history={details?.priceHistory} avgPrice={details?.avgPrice} />
+                    <VolumeChart history={details?.priceHistory} />
+                  </div>
                 </div>
-                {detailLoading && <Spinner />}
-              </div>
+              )}
 
-              {/* Stat cards */}
-              <StatCards details={details} matName={selected.matName} />
-
-              {/* Charts row */}
-              <div style={styles.chartsRow}>
-                <div style={styles.chartPrimary}>
-                  <PriceChart
-                    history={details?.priceHistory}
-                    avgPrice={details?.avgPrice}
-                  />
+              {activeTab === 'level2' && (
+                <div style={s.l2Layout}>
+                  <div style={s.l2Left}>
+                    <OrderBook orders={details?.orders} />
+                  </div>
+                  <div style={s.l2Right}>
+                    <DepthChart orders={details?.orders} />
+                    <LiquidityPanel orders={details?.orders} />
+                  </div>
                 </div>
-                <div style={styles.chartSecondary}>
-                  <VolumeChart
-                    history={details?.priceHistory}
-                    avgQty={details?.avgQtySoldDaily}
-                  />
-                </div>
-              </div>
+              )}
 
-              {/* Order book */}
-              <OrderBook orders={details?.orders} />
+              {activeTab === 'explorer' && (
+                <DataExplorer details={details} />
+              )}
+
+              {activeTab === 'history' && (
+                <HistoryPanel matId={matId} />
+              )}
             </>
           )}
         </div>
       </div>
-
-      <style>{spinnerStyle}</style>
     </div>
   )
 }
 
-const spinnerStyle = `
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-`
+// ── Layout styles ─────────────────────────────────────────────────────────────
+const s = {
+  root: { display: 'flex', height: '100vh', overflow: 'hidden' },
 
-const styles = {
-  root: {
-    display: 'flex',
-    height: '100vh',
-    overflow: 'hidden',
-  },
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    minWidth: 0,
-  },
+  main: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 },
+
   topbar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '10px 20px',
-    background: 'var(--bg2)',
-    borderBottom: '1px solid var(--border)',
-    gap: 12,
-    flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '10px 20px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)',
+    gap: 12, flexShrink: 0,
   },
-  topbarLeft: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: 10,
-  },
-  logo: {
-    fontSize: 16,
-    fontWeight: 700,
-    letterSpacing: '-.02em',
-    color: 'var(--accent)',
-  },
-  topbarSub: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
-    fontWeight: 400,
-  },
-  topbarRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
+  topbarLeft:  { display: 'flex', alignItems: 'center', gap: 10 },
+  topbarRight: { display: 'flex', alignItems: 'center', gap: 10 },
+  appName: { fontSize: 15, fontWeight: 700, letterSpacing: '-.03em', color: 'var(--text)' },
+  appSub:  { fontSize: 10, color: 'var(--text-muted)', letterSpacing: '-.01em' },
+
   errorBadge: {
-    fontSize: 12,
-    color: 'var(--red)',
-    background: 'rgba(239,68,68,.12)',
-    padding: '3px 10px',
-    borderRadius: 99,
-    border: '1px solid rgba(239,68,68,.3)',
+    fontSize: 11, color: 'var(--red)', background: 'var(--red-faint)',
+    border: '1px solid var(--red)', padding: '3px 10px', borderRadius: 99,
+    opacity: 0.8,
   },
-  refreshBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 5,
-    background: 'var(--bg3)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '4px 8px 4px 10px',
-  },
-  refreshDot: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: 'var(--green)',
-    flexShrink: 0,
-  },
-  refreshBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--text-muted)',
-    fontSize: 16,
-    padding: '0 2px',
-    lineHeight: 1,
-    cursor: 'pointer',
-  },
-  content: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
+
+  matHeaderWrap: {
+    background: 'var(--bg2)', borderBottom: '1px solid var(--border)', flexShrink: 0,
   },
   matHeader: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+    padding: '14px 20px 10px', gap: 12,
   },
-  matTitle: {
-    fontSize: 26,
-    fontWeight: 700,
-    letterSpacing: '-.03em',
-    lineHeight: 1.1,
+  matTitle: { fontSize: 22, fontWeight: 700, letterSpacing: '-.04em', lineHeight: 1.1 },
+  matId:    { fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'block' },
+
+  content: {
+    flex: 1, overflowY: 'auto', padding: 20,
+    display: 'flex', flexDirection: 'column', gap: 14,
   },
-  matId: {
-    fontSize: 12,
-    color: 'var(--text-muted)',
-    marginTop: 3,
+
+  // Overview
+  colStack: { display: 'flex', flexDirection: 'column', gap: 14 },
+  chartsRow: { display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 14 },
+
+  // Level 2
+  l2Layout: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'start' },
+  l2Left:   { display: 'flex', flexDirection: 'column', gap: 14 },
+  l2Right:  { display: 'flex', flexDirection: 'column', gap: 14 },
+
+  // Welcome
+  welcome: {
+    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+    justifyContent: 'center', gap: 14, color: 'var(--text-muted)',
   },
-  chartsRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 16,
-  },
-  chartPrimary: {},
-  chartSecondary: {},
-  empty: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'var(--text-muted)',
-    fontSize: 15,
-  },
-  spinner: {
-    width: 20,
-    height: 20,
-    position: 'relative',
-  },
-  spinnerRing: {
-    width: '100%',
-    height: '100%',
-    border: '2px solid var(--border)',
-    borderTopColor: 'var(--accent)',
-    borderRadius: '50%',
-    animation: 'spin .7s linear infinite',
-  },
+  welcomeTitle: { fontSize: 20, fontWeight: 600, color: 'var(--text)', letterSpacing: '-.02em' },
+  welcomeSub:   { fontSize: 13 },
 }

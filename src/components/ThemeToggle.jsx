@@ -1,23 +1,31 @@
 export default function ThemeToggle({ theme, onToggle }) {
   const isDark = theme === 'dark'
   return (
-    <button style={styles.btn} onClick={onToggle} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
-      {isDark ? '☀️' : '🌙'}
+    <button
+      style={styles.btn}
+      onClick={onToggle}
+      title={isDark ? 'Switch to Shroomberg (light)' : 'Switch to Moonlit Forest (dark)'}
+    >
+      <span style={styles.icon}>{isDark ? '☀️' : '🌙'}</span>
+      <span style={styles.label}>{isDark ? 'Light' : 'Dark'}</span>
     </button>
   )
 }
 
 const styles = {
   btn: {
-    background: 'var(--bg3)',
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '6px 10px',
-    fontSize: 16,
-    lineHeight: 1,
-    color: 'var(--text)',
     display: 'flex',
     alignItems: 'center',
-    transition: 'background .15s',
+    gap: 5,
+    background: 'var(--bg3)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '5px 10px',
+    color: 'var(--text-muted)',
+    fontSize: 12,
+    fontWeight: 500,
+    transition: 'background .15s, color .15s',
   },
+  icon:  { fontSize: 14, lineHeight: 1 },
+  label: { letterSpacing: '-.01em' },
 }

@@ -1,30 +1,14 @@
-function fmt(cents) {
-  if (cents == null || cents < 0) return '—'
-  const val = cents / 100
-  if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + 'M'
-  if (val >= 1_000) return (val / 1_000).toFixed(2) + 'K'
-  return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { useMemo } from 'react'
+import { fmtCredits, fmtQty, fmtPct, fmtCreditsRaw } from '../lib/format.js'
+import { calcHistoryMetrics } from '../lib/metrics.js'
 
-function fmtQty(n) {
-  if (n == null || n < 0) return '—'
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
-  return n.toLocaleString()
-}
-
-function pctChange(history) {
-  if (!history || history.length < 2) return null
-  const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date))
-  const oldest = sorted[0].avgPrice
-  const newest = sorted[sorted.length - 1].avgPrice
-  if (!oldest || oldest <= 0) return null
-  return ((newest - oldest) / oldest) * 100
-}
-
-function Card({ label, value, sub, accent }) {
+function Card({ label, value, sub, accent, dim }) {
   return (
-    <div style={{ ...styles.card, ...(accent ? { borderTop: `2px solid ${accent}` } : {}) }}>
+    <div style={{
+      ...styles.card,
+      ...(accent ? { borderTop: `2px solid ${accent}` } : {}),
+      ...(dim    ? { opacity: 0.5 } : {}),
+    }}>
       <div style={styles.label}>{label}</div>
       <div className="num" style={styles.value}>{value}</div>
       {sub && <div style={styles.sub}>{sub}</div>}
@@ -32,45 +16,81 @@ function Card({ label, value, sub, accent }) {
   )
 }
 
-export default function StatCards({ details, matName }) {
+export default function StatCards({ details }) {
+  const hist = useMemo(
+    () => details ? calcHistoryMetrics(
+      details.priceHistory,
+      details.totalQtyAvailable,
+      details.avgQtySoldDaily
+    ) : null,
+    [details]
+  )
+
   if (!details) {
     return (
       <div style={styles.grid}>
-        {['Current Price', 'Avg Price', 'Supply', 'Daily Volume', '30d Change'].map(l => (
-          <Card key={l} label={l} value="—" />
+        {['Current Price','Avg Price','Supply','Daily Volume','30d Change',
+          'Volatility','Days of Supply','vs 30d VWAP'].map(l => (
+          <Card key={l} label={l} value="—" dim />
         ))}
       </div>
     )
   }
 
-  const change = pctChange(details.priceHistory)
-  const changeColor = change === null ? 'var(--text-muted)' : change >= 0 ? 'var(--green)' : 'var(--red)'
+  const change = hist?.change30d
+  const changeColor = change == null ? 'var(--text-muted)'
+    : change >= 0 ? 'var(--green)' : 'var(--red)'
+
+  const premVwap = hist && hist.vwap30d > 0
+    ? ((details.currentPrice - hist.vwap30d) / hist.vwap30d) * 100
+    : null
+  const premColor = premVwap == null ? 'var(--text-muted)'
+    : premVwap <= 0 ? 'var(--green)' : 'var(--red)'
 
   return (
     <div style={styles.grid}>
       <Card
         label="Current Price"
-        value={`${fmt(details.currentPrice)} cr`}
+        value={`${fmtCredits(details.currentPrice)} cr`}
+        sub="best ask"
         accent="var(--accent)"
       />
       <Card
-        label="Avg Price (30d)"
-        value={`${fmt(details.avgPrice)} cr`}
+        label="30d Avg Price"
+        value={`${fmtCredits(details.avgPrice)} cr`}
+        sub="rolling average"
       />
       <Card
         label="Supply"
         value={fmtQty(details.totalQtyAvailable)}
-        sub="units available"
+        sub="units listed"
       />
       <Card
         label="Daily Volume"
         value={fmtQty(details.avgQtySoldDaily)}
-        sub="avg units/day"
+        sub="units/day avg"
       />
       <Card
         label="30d Change"
-        value={change === null ? '—' : `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`}
+        value={change == null ? '—' : fmtPct(change)}
+        sub="vs 30d ago"
         accent={changeColor}
+      />
+      <Card
+        label="Volatility"
+        value={hist?.volatility != null ? fmtPct(hist.volatility * 100, 1) : '—'}
+        sub="price stddev / mean"
+      />
+      <Card
+        label="Days of Supply"
+        value={hist?.daysOfSupply != null ? hist.daysOfSupply.toFixed(1) : '—'}
+        sub="at current sell rate"
+      />
+      <Card
+        label="vs 30d VWAP"
+        value={premVwap == null ? '—' : fmtPct(premVwap)}
+        sub={hist?.vwap30d ? `VWAP ${fmtCredits(hist.vwap30d)} cr` : 'insufficient data'}
+        accent={premColor}
       />
     </div>
   )
@@ -79,33 +99,34 @@ export default function StatCards({ details, matName }) {
 const styles = {
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: 12,
+    gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))',
+    gap: 10,
   },
   card: {
     background: 'var(--bg2)',
     border: '1px solid var(--border)',
-    borderRadius: 12,
-    padding: '14px 16px',
+    borderRadius: 'var(--radius)',
+    padding: '13px 15px',
     boxShadow: 'var(--card-shadow)',
   },
   label: {
-    fontSize: 11,
-    fontWeight: 500,
+    fontSize: 10,
+    fontWeight: 600,
     color: 'var(--text-muted)',
     textTransform: 'uppercase',
-    letterSpacing: '.05em',
+    letterSpacing: '.06em',
     marginBottom: 6,
   },
   value: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 700,
-    letterSpacing: '-.02em',
+    letterSpacing: '-.03em',
     lineHeight: 1.2,
   },
   sub: {
-    fontSize: 11,
+    fontSize: 10,
     color: 'var(--text-muted)',
     marginTop: 4,
+    lineHeight: 1.3,
   },
 }

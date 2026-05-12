@@ -4,5 +4,13 @@
       "source": "/api/:path*",
       "destination": "https://api.g2.galactictycoons.com/:path*"
     }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "s-maxage=30, stale-while-revalidate=60" }
+      ]
+    }
   ]
 }

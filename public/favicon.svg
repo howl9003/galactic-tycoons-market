@@ -1,4 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="14" fill="#6366f1"/>
-  <text x="16" y="21" font-size="16" text-anchor="middle" fill="white" font-family="serif">G</text>
+  <!-- Stem -->
+  <path d="M12 21 Q11.5 29 16 29 Q20.5 29 20 21" fill="#F5E6D0"/>
+  <!-- Cap -->
+  <path d="M3 23 Q2 9 16 7 Q30 9 29 23 Z" fill="#C85A1E"/>
+  <!-- Cap sheen -->
+  <path d="M7 18 Q10 11 16 8.5" stroke="#E8743C" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <!-- Spots -->
+  <circle cx="10" cy="18" r="2.2" fill="rgba(255,255,255,0.78)"/>
+  <circle cx="18" cy="13" r="2.8" fill="rgba(255,255,255,0.78)"/>
+  <circle cx="24" cy="19" r="1.8" fill="rgba(255,255,255,0.78)"/>
 </svg>

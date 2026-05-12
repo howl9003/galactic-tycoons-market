@@ -1,39 +1,39 @@
 import { useState, useMemo } from 'react'
+import { fmtCredits, fmtPct } from '../lib/format.js'
 
 const SORT_OPTIONS = [
-  { value: 'name-asc',   label: 'Name A–Z' },
-  { value: 'name-desc',  label: 'Name Z–A' },
-  { value: 'price-desc', label: 'Price ↓' },
-  { value: 'price-asc',  label: 'Price ↑' },
-  { value: 'change-desc',label: '% Change ↓' },
-  { value: 'change-asc', label: '% Change ↑' },
+  { value: 'name-asc',    label: 'Name A–Z' },
+  { value: 'name-desc',   label: 'Name Z–A' },
+  { value: 'price-desc',  label: 'Price ↓' },
+  { value: 'price-asc',   label: 'Price ↑' },
+  { value: 'change-desc', label: '% Change ↓' },
+  { value: 'change-asc',  label: '% Change ↑' },
 ]
 
-function pct(current, avg) {
-  if (!avg || avg <= 0) return null
-  return ((current - avg) / avg) * 100
+function pct(m) {
+  if (!m.avgPrice || m.avgPrice <= 0) return null
+  return ((m.currentPrice - m.avgPrice) / m.avgPrice) * 100
 }
 
 export default function Sidebar({ materials, selected, onSelect, loading }) {
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState('name-asc')
+  const [sort,   setSort]   = useState('name-asc')
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase()
-    let list = materials.filter(m => m.matName.toLowerCase().includes(q))
+    const q    = search.toLowerCase()
+    let list   = materials.filter(m => m.matName.toLowerCase().includes(q))
 
-    list = [...list].sort((a, b) => {
+    return [...list].sort((a, b) => {
       switch (sort) {
-        case 'name-asc':   return a.matName.localeCompare(b.matName)
-        case 'name-desc':  return b.matName.localeCompare(a.matName)
-        case 'price-desc': return b.currentPrice - a.currentPrice
-        case 'price-asc':  return a.currentPrice - b.currentPrice
-        case 'change-desc': return (pct(b.currentPrice, b.avgPrice) ?? -Infinity) - (pct(a.currentPrice, a.avgPrice) ?? -Infinity)
-        case 'change-asc':  return (pct(a.currentPrice, a.avgPrice) ?? Infinity) - (pct(b.currentPrice, b.avgPrice) ?? Infinity)
+        case 'name-asc':    return a.matName.localeCompare(b.matName)
+        case 'name-desc':   return b.matName.localeCompare(a.matName)
+        case 'price-desc':  return b.currentPrice - a.currentPrice
+        case 'price-asc':   return a.currentPrice - b.currentPrice
+        case 'change-desc': return (pct(b) ?? -Infinity) - (pct(a) ?? -Infinity)
+        case 'change-asc':  return (pct(a) ?? Infinity)  - (pct(b) ?? Infinity)
         default: return 0
       }
     })
-    return list
   }, [materials, search, sort])
 
   return (
@@ -43,26 +43,32 @@ export default function Sidebar({ materials, selected, onSelect, loading }) {
         <span style={styles.count} className="num">{materials.length}</span>
       </div>
 
-      <input
-        style={styles.search}
-        type="search"
-        placeholder="Search…"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-      />
-
-      <select style={styles.select} value={sort} onChange={e => setSort(e.target.value)}>
-        {SORT_OPTIONS.map(o => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+      <div style={styles.controls}>
+        <input
+          style={styles.search}
+          type="search"
+          placeholder="Search…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <select
+          style={styles.select}
+          value={sort}
+          onChange={e => setSort(e.target.value)}
+        >
+          {SORT_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
 
       <div style={styles.list}>
         {loading && materials.length === 0 && (
-          <div style={styles.empty}>Loading…</div>
+          <div style={styles.empty}>🍄 Loading…</div>
         )}
+
         {filtered.map(m => {
-          const change = pct(m.currentPrice, m.avgPrice)
+          const change    = pct(m)
           const isSelected = selected?.matId === m.matId
           return (
             <button
@@ -73,19 +79,26 @@ export default function Sidebar({ materials, selected, onSelect, loading }) {
               <span style={styles.matName}>{m.matName}</span>
               <div style={styles.matRight}>
                 <span className="num" style={styles.matPrice}>
-                  {(m.currentPrice / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {fmtCredits(m.currentPrice)} cr
                 </span>
                 {change !== null && (
-                  <span className="num" style={{ ...styles.matChange, color: change >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                    {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+                  <span
+                    className="num"
+                    style={{
+                      ...styles.matChange,
+                      color: change >= 0 ? 'var(--green)' : 'var(--red)',
+                    }}
+                  >
+                    {fmtPct(change, 1)}
                   </span>
                 )}
               </div>
             </button>
           )
         })}
+
         {!loading && filtered.length === 0 && (
-          <div style={styles.empty}>No results</div>
+          <div style={styles.empty}>No results for "{search}"</div>
         )}
       </div>
     </aside>
@@ -94,8 +107,8 @@ export default function Sidebar({ materials, selected, onSelect, loading }) {
 
 const styles = {
   aside: {
-    width: 260,
-    minWidth: 260,
+    width: 264,
+    minWidth: 264,
     background: 'var(--bg2)',
     borderRight: '1px solid var(--border)',
     display: 'flex',
@@ -111,39 +124,44 @@ const styles = {
   },
   title: {
     fontWeight: 600,
-    fontSize: 15,
+    fontSize: 14,
     letterSpacing: '-.01em',
   },
   count: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'var(--text-muted)',
     background: 'var(--bg3)',
+    border: '1px solid var(--border)',
     padding: '1px 7px',
     borderRadius: 99,
   },
+  controls: {
+    padding: '0 10px 8px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
   search: {
-    margin: '0 10px 6px',
     padding: '7px 10px',
     background: 'var(--bg3)',
     border: '1px solid var(--border)',
-    borderRadius: 8,
+    borderRadius: 'var(--radius-sm)',
     color: 'var(--text)',
     fontSize: 13,
     outline: 'none',
     fontFamily: 'inherit',
-    width: 'calc(100% - 20px)',
+    width: '100%',
   },
   select: {
-    margin: '0 10px 8px',
     padding: '6px 8px',
     background: 'var(--bg3)',
     border: '1px solid var(--border)',
-    borderRadius: 8,
+    borderRadius: 'var(--radius-sm)',
     color: 'var(--text)',
     fontSize: 12,
     outline: 'none',
     fontFamily: 'inherit',
-    width: 'calc(100% - 20px)',
+    width: '100%',
     cursor: 'pointer',
   },
   list: {
@@ -153,7 +171,7 @@ const styles = {
   },
   item: {
     width: '100%',
-    padding: '9px 14px',
+    padding: '8px 14px',
     background: 'none',
     border: 'none',
     borderBottom: '1px solid var(--border)',
@@ -163,11 +181,12 @@ const styles = {
     justifyContent: 'space-between',
     gap: 8,
     textAlign: 'left',
-    transition: 'background .1s',
+    cursor: 'pointer',
     fontSize: 13,
+    transition: 'background .1s',
   },
   itemActive: {
-    background: 'var(--bg3)',
+    background: 'var(--accent-faint)',
     borderLeft: '3px solid var(--accent)',
     paddingLeft: 11,
   },
@@ -176,6 +195,7 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    fontWeight: 450,
   },
   matRight: {
     display: 'flex',
@@ -185,14 +205,14 @@ const styles = {
     flexShrink: 0,
   },
   matPrice: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'var(--text)',
   },
   matChange: {
-    fontSize: 11,
+    fontSize: 10,
   },
   empty: {
-    padding: '20px 16px',
+    padding: '24px 16px',
     color: 'var(--text-muted)',
     fontSize: 13,
     textAlign: 'center',
