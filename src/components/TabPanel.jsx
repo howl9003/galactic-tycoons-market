@@ -1,6 +1,6 @@
 export default function TabPanel({ tabs, activeTab, onTabChange }) {
   return (
-    <div style={styles.strip}>
+    <div className="tab-strip" style={styles.strip}>
       {tabs.map(tab => {
         const active = tab.id === activeTab
         return (

@@ -15,7 +15,7 @@ function pct(m) {
   return ((m.currentPrice - m.avgPrice) / m.avgPrice) * 100
 }
 
-export default function Sidebar({ materials, selected, onSelect, loading }) {
+export default function Sidebar({ materials, selected, onSelect, loading, isOpen, onClose }) {
   const [search, setSearch] = useState('')
   const [sort,   setSort]   = useState('name-asc')
 
@@ -37,10 +37,12 @@ export default function Sidebar({ materials, selected, onSelect, loading }) {
   }, [materials, search, sort])
 
   return (
-    <aside style={styles.aside}>
+    <aside className={`sidebar${isOpen ? ' open' : ''}`} style={styles.aside}>
       <div style={styles.header}>
         <span style={styles.title}>Materials</span>
         <span style={styles.count} className="num">{materials.length}</span>
+        {/* Close button — only visible on mobile via CSS */}
+        <button className="sidebar-close" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div style={styles.controls}>
@@ -68,7 +70,7 @@ export default function Sidebar({ materials, selected, onSelect, loading }) {
         )}
 
         {filtered.map(m => {
-          const change    = pct(m)
+          const change     = pct(m)
           const isSelected = selected?.matId === m.matId
           return (
             <button
@@ -120,7 +122,7 @@ const styles = {
     padding: '16px 16px 8px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   title: {
     fontWeight: 600,

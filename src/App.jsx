@@ -57,13 +57,13 @@ function RefreshBadge({ lastUpdated, onRefresh }) {
     const id = setInterval(() => forceRender(n => n + 1), 1000)
     return () => clearInterval(id)
   }, [])
-  const secs = lastUpdated ? Math.round((Date.now() - lastUpdated.getTime()) / 1000) : null
-  const nextIn = secs != null ? Math.max(0, 60 - secs) : '—'
+  const secs  = lastUpdated ? Math.round((Date.now() - lastUpdated.getTime()) / 1000) : null
+  const nextIn = secs != null ? Math.max(0, 300 - secs) : '—'
   return (
     <div style={badge.wrap}>
       <span style={badge.dot} />
-      <span style={badge.text}>
-        {secs != null ? `updated ${secs}s ago · refresh in ${nextIn}s` : 'Loading…'}
+      <span className="refresh-text" style={badge.text}>
+        {secs != null ? `updated ${secs}s ago · next in ${nextIn}s` : 'Loading…'}
       </span>
       <button style={badge.btn} onClick={onRefresh} title="Refresh now">↻</button>
     </div>
@@ -78,10 +78,11 @@ const badge = {
 
 // ── Main app ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const { theme, toggle }                       = useTheme()
-  const { materials, loading, error, lastUpdated, refresh } = useMaterials()
-  const [selected, setSelected]                 = useState(null)
-  const [activeTab, setActiveTab]               = useState('overview')
+  const { theme, toggle }                                        = useTheme()
+  const { materials, loading, error, lastUpdated, refresh }      = useMaterials()
+  const [selected, setSelected]                                  = useState(null)
+  const [activeTab, setActiveTab]                                = useState('overview')
+  const [sidebarOpen, setSidebarOpen]                            = useState(false)
 
   const matId = selected?.matId ?? null
   const { details, loading: detailLoading } = useMatDetails(matId)
@@ -91,25 +92,47 @@ export default function App() {
     if (!selected && materials.length > 0) setSelected(materials[0])
   }, [materials, selected])
 
+  function handleSelect(m) {
+    setSelected(m)
+    setActiveTab('overview')
+    setSidebarOpen(false)   // close drawer on mobile after picking
+  }
+
   return (
     <div style={s.root}>
+      {/* ── Mobile sidebar overlay ── */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
       {/* ── Sidebar ── */}
       <Sidebar
         materials={materials}
         selected={selected}
-        onSelect={m => { setSelected(m); setActiveTab('overview') }}
+        onSelect={handleSelect}
         loading={loading}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       {/* ── Main panel ── */}
       <div style={s.main}>
         {/* Topbar */}
-        <header style={s.topbar}>
+        <header className="topbar-pad" style={s.topbar}>
           <div style={s.topbarLeft}>
+            {/* Hamburger — only visible on mobile via CSS */}
+            <button
+              className="hamburger"
+              onClick={() => setSidebarOpen(o => !o)}
+              aria-label="Open materials list"
+            >
+              ☰
+            </button>
             <ShroomLogo size={26} />
             <div>
               <div style={s.appName}>Shroomberg Terminal</div>
-              <div style={s.appSub}>Galactic Tycoons Exchange</div>
+              <div className="app-sub" style={s.appSub}>Galactic Tycoons Exchange</div>
             </div>
           </div>
 
@@ -125,7 +148,7 @@ export default function App() {
         {/* Material heading + tab strip */}
         {selected && (
           <div style={s.matHeaderWrap}>
-            <div style={s.matHeader}>
+            <div className="mat-header-pad" style={s.matHeader}>
               <div>
                 <h1 style={s.matTitle}>{selected.matName}</h1>
                 <span style={s.matId} className="num">mat #{selected.matId}</span>
@@ -137,19 +160,19 @@ export default function App() {
         )}
 
         {/* Content */}
-        <div style={s.content}>
+        <div className="content-area" style={s.content}>
           {!selected ? (
             <div style={s.welcome}>
               <ShroomLogo size={64} />
               <div style={s.welcomeTitle}>Welcome to Shroomberg Terminal</div>
-              <div style={s.welcomeSub}>Select a material from the sidebar to begin analysis</div>
+              <div style={s.welcomeSub}>Select a material to begin analysis</div>
             </div>
           ) : (
             <>
               {activeTab === 'overview' && (
                 <div style={s.colStack}>
                   <StatCards details={details} />
-                  <div style={s.chartsRow}>
+                  <div className="charts-row">
                     <PriceChart history={details?.priceHistory} avgPrice={details?.avgPrice} />
                     <VolumeChart history={details?.priceHistory} />
                   </div>
@@ -157,7 +180,7 @@ export default function App() {
               )}
 
               {activeTab === 'level2' && (
-                <div style={s.l2Layout}>
+                <div className="l2-layout">
                   <div style={s.l2Left}>
                     <OrderBook orders={details?.orders} />
                   </div>
@@ -222,10 +245,8 @@ const s = {
 
   // Overview
   colStack: { display: 'flex', flexDirection: 'column', gap: 14 },
-  chartsRow: { display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 14 },
 
   // Level 2
-  l2Layout: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'start' },
   l2Left:   { display: 'flex', flexDirection: 'column', gap: 14 },
   l2Right:  { display: 'flex', flexDirection: 'column', gap: 14 },
 
@@ -235,5 +256,5 @@ const s = {
     justifyContent: 'center', gap: 14, color: 'var(--text-muted)',
   },
   welcomeTitle: { fontSize: 20, fontWeight: 600, color: 'var(--text)', letterSpacing: '-.02em' },
-  welcomeSub:   { fontSize: 13 },
+  welcomeSub:   { fontSize: 13, textAlign: 'center', padding: '0 20px' },
 }
