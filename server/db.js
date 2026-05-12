@@ -6,8 +6,11 @@ import { dirname, join } from 'path'
 import { mkdirSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR   = join(__dirname, '..', 'data')
-const DB_PATH    = join(DATA_DIR, 'shroomberg.db')
+
+// DB_PATH env var lets Railway point this at a persistent volume, e.g. /data/shroomberg.db
+// Falls back to <repo-root>/data/shroomberg.db for local dev.
+const DB_PATH = process.env.DB_PATH ?? join(__dirname, '..', 'data', 'shroomberg.db')
+const DATA_DIR = dirname(DB_PATH)
 
 mkdirSync(DATA_DIR, { recursive: true })
 

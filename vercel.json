@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://api.g2.galactictycoons.com/:path*"
+    },
+    {
+      "source": "/db/:path*",
+      "destination": "https://REPLACE_WITH_RAILWAY_URL/db/:path*"
     }
   ],
   "headers": [
