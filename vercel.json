@@ -6,7 +6,7 @@
     },
     {
       "source": "/db/:path*",
-      "destination": "https://REPLACE_WITH_RAILWAY_URL/db/:path*"
+      "destination": "https://shroomberg.up.railway.app/db/:path*"
     }
   ],
   "headers": [
