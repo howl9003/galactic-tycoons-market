@@ -1,8 +1,9 @@
-// Shroomberg Terminal — local DB server
-// This server ONLY handles SQLite reads and writes.
-// It makes ZERO outbound network calls — the browser fetches the GT API directly.
+// Shroomberg Terminal — DB server + market data poller
+// Handles SQLite reads/writes AND polls the GT API every 5 minutes on the server side
+// so data is captured 24/7 even when no browser is open.
 import express from 'express'
-import dbRouter from './routes/db.js'
+import dbRouter       from './routes/db.js'
+import { startPoller } from './poller.js'
 
 const app  = express()
 const PORT = parseInt(process.env.PORT ?? 3001)
@@ -38,7 +39,8 @@ app.listen(PORT, () => {
   ╔══════════════════════════════════════╗
   ║   🍄  Shroomberg Terminal  DB       ║
   ║   http://localhost:${PORT}              ║
-  ║   (no outbound calls — DB only)     ║
+  ║   poller: every 5 min               ║
   ╚══════════════════════════════════════╝
   `)
+  startPoller()
 })
